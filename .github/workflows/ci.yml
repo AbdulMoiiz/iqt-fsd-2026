@@ -9,13 +9,25 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Configure test environment
         run: cp .env.example .env
       - name: Build and run containers
         run: docker compose up --build -d --wait
       - name: Check task API and persistence
         run: bash scripts/smoke.sh
+      - name: Capture the weather integration
+        if: github.event_name == 'push'
+        run: |
+          curl -fsS -X POST http://127.0.0.1:8080/api/tasks -H 'Content-Type: application/json' -d '{"data":{"title":"Prepare project submission"}}' >/dev/null
+          curl -fsS -X POST http://127.0.0.1:8080/api/tasks -H 'Content-Type: application/json' -d '{"data":{"title":"Review API responses"}}' >/dev/null
+          mkdir -p artifacts
+          google-chrome --headless=new --no-sandbox --disable-gpu --hide-scrollbars --window-size=1440,1000 --virtual-time-budget=15000 --screenshot=artifacts/weather-integration.png http://127.0.0.1:8080
+      - uses: actions/upload-artifact@v4
+        if: github.event_name == 'push'
+        with:
+          name: integration-screenshot
+          path: artifacts/weather-integration.png
       - name: Show container logs on failure
         if: failure()
         run: docker compose logs --no-color
