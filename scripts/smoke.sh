@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+trap 'echo "Smoke check failed at line $LINENO" >&2' ERR
 
 base="http://localhost:${APP_PORT:-8080}/api/tasks"
 created="$(curl -fsS -X POST "$base" -H 'Content-Type: application/json' -d '{"data":{"title":"Smoke test task"}}')"
@@ -19,10 +20,12 @@ test "$blank_status" = "400"
 test "$(jq -r '.error.code' /tmp/iqt-blank.json)" = "VALIDATION_ERROR"
 
 invalid_id_status="$(curl -sS -o /tmp/iqt-invalid-id.json -w '%{http_code}' "$base/not-a-number")"
+printf 'Invalid ID response: %s %s\n' "$invalid_id_status" "$(cat /tmp/iqt-invalid-id.json)"
 test "$invalid_id_status" = "400"
 test "$(jq -r '.error.code' /tmp/iqt-invalid-id.json)" = "INVALID_PATH"
 
 media_status="$(curl -sS -o /tmp/iqt-media.json -w '%{http_code}' -X POST "$base" -d '{"data":{"title":"Wrong media type"}}')"
+printf 'Unsupported media response: %s %s\n' "$media_status" "$(cat /tmp/iqt-media.json)"
 test "$media_status" = "415"
 test "$(jq -r '.error.code' /tmp/iqt-media.json)" = "UNSUPPORTED_MEDIA_TYPE"
 
