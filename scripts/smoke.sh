@@ -18,6 +18,14 @@ blank_status="$(curl -sS -o /tmp/iqt-blank.json -w '%{http_code}' -X POST "$base
 test "$blank_status" = "400"
 test "$(jq -r '.error.code' /tmp/iqt-blank.json)" = "VALIDATION_ERROR"
 
+invalid_id_status="$(curl -sS -o /tmp/iqt-invalid-id.json -w '%{http_code}' "$base/not-a-number")"
+test "$invalid_id_status" = "400"
+test "$(jq -r '.error.code' /tmp/iqt-invalid-id.json)" = "INVALID_PATH"
+
+media_status="$(curl -sS -o /tmp/iqt-media.json -w '%{http_code}' -X POST "$base" -d '{"data":{"title":"Wrong media type"}}')"
+test "$media_status" = "415"
+test "$(jq -r '.error.code' /tmp/iqt-media.json)" = "UNSUPPORTED_MEDIA_TYPE"
+
 docker compose restart db backend >/dev/null
 docker compose up -d --wait >/dev/null
 test "$(curl -fsS "$base" | jq --argjson id "$id" '.data[] | select(.id == $id) | .completed')" = "true"
